@@ -28,22 +28,15 @@ int main(void) {
     filecontents[line_number++] = strdup(lineptr);
 
     if (line_number == num_lines_max) {
-      printf("Hit the max lines! Reallocating.\n");
       num_lines_max *= 2;
-      char **tmp = realloc(filecontents, num_lines_max * sizeof(filecontents));
-      filecontents = tmp;
+      filecontents = realloc(filecontents, num_lines_max * sizeof(filecontents));
     }
   }
 
-  for (size_t i=0; i<line_number; i++) {
-    printf("%zu:: %s", i, filecontents[i]);
-  }
+  for (size_t i=0; i<line_number; i++) printf("%zu:: %s", i, filecontents[i]);
 
-  for (size_t i=0; i<line_number; i++) {
-    free(filecontents[i]);
-  }
+  for (size_t i=0; i<line_number; i++) free(filecontents[i]);
   free(filecontents);
-
   if (fp) fclose(fp);
   if (lineptr) free(lineptr);
 
