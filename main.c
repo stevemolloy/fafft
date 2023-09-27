@@ -24,8 +24,7 @@ int main(void) {
       return 1;
   }
 
-  do {
-    nchr = getline(&lineptr, &n, fp);
+  while ((nchr = getline(&lineptr, &n, fp)) != -1) {
     filecontents[line_number++] = strdup(lineptr);
 
     if (line_number == num_lines_max) {
@@ -35,11 +34,10 @@ int main(void) {
       filecontents = tmp;
     }
   }
-  while (nchr != -1);
 
-  printf("%s", filecontents[0]);
-  printf("%s", filecontents[1]);
-  printf("%s", filecontents[2]);
+  for (size_t i=0; i<line_number; i++) {
+    printf("%zu:: %s", i, filecontents[i]);
+  }
 
   for (size_t i=0; i<line_number; i++) {
     free(filecontents[i]);
