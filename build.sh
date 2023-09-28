@@ -1,2 +1,2 @@
-clang -Wall -Wpedantic -Werror main.c -o fafft
+clang -Wall -Wpedantic -Werror -ggdb main.c -o fafft
 
