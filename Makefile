@@ -1,6 +1,6 @@
 CC = clang
 CFLAGS = -Wall -Wpedantic -Werror -ggdb
-CLIBS = 
+CLIBS = -lm -lfftw3
 
 all: fafft
 
