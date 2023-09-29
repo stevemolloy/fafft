@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <sys/time.h>
 #include <time.h>
 #include <complex.h>
 #include <fftw3.h>
@@ -115,7 +114,7 @@ int main(void) {
   fftw_execute(py);
 
   for (size_t i=0; i<N; i++) {
-    printf("%lf, %f\n", i*frequency, cabs(x_fft[i]));
+    printf("%lf, %f, %f\n", i*frequency, cabs(x_fft[i]), carg(x_fft[i]));
   }
 
   fftw_destroy_plan(px);
