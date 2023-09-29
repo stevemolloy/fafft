@@ -8,7 +8,7 @@
 
 #include "string_array.h"
 
-#define MAX_NLINES 65536
+#define MAX_NLINES 131072
 #define timespec_diff_macro(a, b, result)             \
   do {                                                \
     (result)->tv_sec = (a)->tv_sec - (b)->tv_sec;     \
@@ -69,7 +69,7 @@ int main(void) {
           &year, &month, &day, &hour, &minute, &second, &nanoseconds, &x_int, &y_int
         ) != 9) {
         fprintf(stderr, "Invalid input format\n");
-        return 1;
+        return_defer(1);
     }
 
     x_pos[i-2] = x_int + 0.0*I;
@@ -87,7 +87,7 @@ int main(void) {
     time_t timestamp = mktime(&tm_data);
     if (timestamp == -1) {
         perror("mktime");
-        return 1;
+        return_defer(1);
     }
 
     // Create a timespec structure
