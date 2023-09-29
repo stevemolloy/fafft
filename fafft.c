@@ -18,58 +18,53 @@
       (result)->tv_nsec += 1000000000;                \
     }                                                 \
   } while (0)
+// I got the following from http://twitch.tv/tsoding
+#define return_defer(value) do { exe_result = (value); goto defer; } while (0)
 
 int main(void) {
+  int exe_result = 0;
   FILE *fp = NULL;
-  StringArray filecontents = {
-    .contents = NULL,
-    .size = 0,
-    .capacity = MAX_NLINES,
-  };
+  StringArray file_contents = new_string_array(MAX_NLINES);
   char *lineptr = NULL;
-  size_t n = 0;
-  size_t nchr = 0;
+  size_t n = 0; // Needed for the upcoming getline call
+  fftw_complex *x_pos = NULL;
+  fftw_complex *y_pos = NULL;
+  fftw_complex *x_fft = NULL;
+  fftw_complex *y_fft = NULL;
+  fftw_plan px = NULL;
+  fftw_plan py = NULL;
 
   // Reading the file
   if (!(fp = fopen ("fa_data_001.dat", "r"))) {
-      fprintf (stderr, "error: file open failed");
-      return 1;
+    fprintf (stderr, "error: file open failed");
+    return_defer(1);
   }
 
-  if (alloc_string_array(&filecontents) < 0) {
-    fclose(fp);
-    return 1;
+  if (alloc_string_array(&file_contents) < 0) {
+    return_defer(1);
   }
 
-  while ((nchr = getline(&lineptr, &n, fp)) != -1) {
-    filecontents.contents[filecontents.size++] = strdup(lineptr);
-
-    if (string_array_is_full(&filecontents)) {
-      if (realloc_string_array(&filecontents) < 0) {
-        for (size_t i=0; i<filecontents.size; i++) free(filecontents.contents[i]);
-        free(filecontents.contents);
-        if (fp) fclose(fp);
-        if (lineptr) free(lineptr);
-        return 1;
-      }
+  while (getline(&lineptr, &n, fp) > 0) {
+    if (add_string_to_array(&file_contents, lineptr) < 0) {
+      return_defer(1);
     }
   }
-  // At this point, the file has been read and stored in filecontents
+  // At this point, the file has been read and stored in file_contents
 
   // Preparing for the FFT
-  size_t N = filecontents.size - 2;
-  fftw_complex *x_pos = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
-  fftw_complex *y_pos = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
-  fftw_complex *x_fft = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
-  fftw_complex *y_fft = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
+  size_t N = file_contents.size - 2;
+  x_pos = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
+  y_pos = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
+  x_fft = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
+  y_fft = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
 
   struct timespec new_ts = {0}, old_ts = {0}, result = {0};
   unsigned long long time_diff_sum = 0;
 
-  for (size_t i=2; i<filecontents.size; i++) {
+  for (size_t i=2; i<file_contents.size; i++) {
     int year, month, day, hour, minute, second, nanoseconds, x_int, y_int;
     if (sscanf(
-          filecontents.contents[i], 
+          file_contents.contents[i], 
           "%d-%d-%d_%d:%d:%d.%d, [%d, %d]", 
           &year, &month, &day, &hour, &minute, &second, &nanoseconds, &x_int, &y_int
         ) != 9) {
@@ -109,8 +104,8 @@ int main(void) {
   double frequency = 1/T;
 
   // Making the plans
-  fftw_plan px = fftw_plan_dft_1d(N, x_pos, x_fft, FFTW_FORWARD, FFTW_ESTIMATE);
-  fftw_plan py = fftw_plan_dft_1d(N, y_pos, y_fft, FFTW_FORWARD, FFTW_ESTIMATE);
+  px = fftw_plan_dft_1d(N, x_pos, x_fft, FFTW_FORWARD, FFTW_ESTIMATE);
+  py = fftw_plan_dft_1d(N, y_pos, y_fft, FFTW_FORWARD, FFTW_ESTIMATE);
   fftw_execute(px);
   fftw_execute(py);
 
@@ -118,18 +113,17 @@ int main(void) {
     printf("%lf, %f, %f\n", i*frequency, cabs(x_fft[i]), carg(x_fft[i]));
   }
 
-  fftw_destroy_plan(px);
-  fftw_destroy_plan(py);
-  fftw_free(x_pos);
-  fftw_free(y_pos);
-  fftw_free(x_fft);
-  fftw_free(y_fft);
-  fftw_cleanup();
+  defer:
+    if (fp) fclose(fp);
+    if (lineptr) free(lineptr);
+    if (file_contents.contents) free_string_array(&file_contents);
+    if (x_pos) fftw_free(x_pos);
+    if (y_pos) fftw_free(y_pos);
+    if (x_fft) fftw_free(x_fft);
+    if (y_fft) fftw_free(y_fft);
+    if (px) fftw_destroy_plan(px);
+    if (py) fftw_destroy_plan(py);
+    fftw_cleanup();
 
-  for (size_t i=0; i<filecontents.size; i++) free(filecontents.contents[i]);
-  free(filecontents.contents);
-  if (fp) fclose(fp);
-  if (lineptr) free(lineptr);
-
-  return 0;
+    return exe_result;
 }
