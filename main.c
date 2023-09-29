@@ -1,11 +1,14 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <time.h>
 #include <complex.h>
 #include <fftw3.h>
 
-#define MAX_NLINES 65536
+#include "string_array.h"
+
+#define MAX_NLINES 1024
 #define timespec_diff_macro(a, b, result)             \
   do {                                                \
     (result)->tv_sec = (a)->tv_sec - (b)->tv_sec;     \
@@ -18,11 +21,13 @@
 
 int main(void) {
   FILE *fp = NULL;
-  size_t num_lines_max = MAX_NLINES;
-  char **filecontents = NULL;
+  StringArray filecontents = {
+    .contents = NULL,
+    .size = 0,
+    .capacity = MAX_NLINES,
+  };
   char *lineptr = NULL;
   size_t n = 0;
-  size_t line_number = 0;
   size_t nchr = 0;
 
   // Reading the file
@@ -31,22 +36,18 @@ int main(void) {
       return 1;
   }
 
-  if (!(filecontents = calloc(num_lines_max, sizeof(filecontents)))) {
-    printf("Memory allocation failed.\n");
+  if (alloc_string_array(&filecontents) < 0) {
     fclose(fp);
     return 1;
   }
 
   while ((nchr = getline(&lineptr, &n, fp)) != -1) {
-    filecontents[line_number++] = strdup(lineptr);
+    filecontents.contents[filecontents.size++] = strdup(lineptr);
 
-    if (line_number == num_lines_max) {
-      num_lines_max *= 2;
-      filecontents = realloc(filecontents, num_lines_max * sizeof(filecontents));
-      if (filecontents == NULL) {
-        printf("Memory allocation failed.\n");
-        for (size_t i=0; i<line_number; i++) free(filecontents[i]);
-        free(filecontents);
+    if (string_array_is_full(&filecontents)) {
+      if (realloc_string_array(&filecontents) < 0) {
+        for (size_t i=0; i<filecontents.size; i++) free(filecontents.contents[i]);
+        free(filecontents.contents);
         if (fp) fclose(fp);
         if (lineptr) free(lineptr);
         return 1;
@@ -56,7 +57,7 @@ int main(void) {
   // At this point, the file has been read and stored in filecontents
 
   // Preparing for the FFT
-  size_t N = line_number - 2;
+  size_t N = filecontents.size - 2;
   fftw_complex *x_pos = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
   fftw_complex *y_pos = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
   fftw_complex *x_fft = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
@@ -65,10 +66,10 @@ int main(void) {
   struct timespec new_ts = {0}, old_ts = {0}, result = {0};
   unsigned long long time_diff_sum = 0;
 
-  for (size_t i=2; i<line_number; i++) {
+  for (size_t i=2; i<filecontents.size; i++) {
     int year, month, day, hour, minute, second, nanoseconds, x_int, y_int;
     if (sscanf(
-          filecontents[i], 
+          filecontents.contents[i], 
           "%d-%d-%d_%d:%d:%d.%d, [%d, %d]", 
           &year, &month, &day, &hour, &minute, &second, &nanoseconds, &x_int, &y_int
         ) != 9) {
@@ -125,8 +126,8 @@ int main(void) {
   fftw_free(y_fft);
   fftw_cleanup();
 
-  for (size_t i=0; i<line_number; i++) free(filecontents[i]);
-  free(filecontents);
+  for (size_t i=0; i<filecontents.size; i++) free(filecontents.contents[i]);
+  free(filecontents.contents);
   if (fp) fclose(fp);
   if (lineptr) free(lineptr);
 
