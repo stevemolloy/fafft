@@ -8,7 +8,7 @@
 
 #include "string_array.h"
 
-#define MAX_NLINES 1024
+#define MAX_NLINES 65536
 #define timespec_diff_macro(a, b, result)             \
   do {                                                \
     (result)->tv_sec = (a)->tv_sec - (b)->tv_sec;     \
