@@ -16,4 +16,6 @@ int alloc_string_array(StringArray*);
 
 int realloc_string_array(StringArray*);
 
+int add_string_to_array(StringArray*, char*);
+
 #endif // !

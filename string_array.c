@@ -1,9 +1,21 @@
 #include <stdio.h>
+#include <string.h>
 
 #include "string_array.h"
 
 bool string_array_is_full(StringArray *sa) {
   return sa->size == sa->capacity;
+}
+
+int add_string_to_array(StringArray *sa, char *input) {
+  sa->contents[sa->size++] = strdup(input);
+
+  if (string_array_is_full(sa)) {
+    if (realloc_string_array(sa) < 0) {
+      return -1;
+    }
+  }
+  return 0;
 }
 
 int alloc_string_array(StringArray *sa) {
