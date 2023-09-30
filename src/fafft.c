@@ -26,7 +26,8 @@ int main(int argc, char* argv[]) {
   int exe_result = 0;
   char* output_filename = NULL;
   FILE *fp = NULL;
-  StringArray file_contents = new_string_array(MAX_NLINES);
+  FILE *output_file_ptr = NULL;
+  StringArray file_contents;
   char *lineptr = NULL;
   size_t n = 0; // Needed for the upcoming getline call
   fftw_complex *x_pos = NULL;
@@ -43,90 +44,99 @@ int main(int argc, char* argv[]) {
     return_defer(1);
   }
 
-  // Generate the output filename by concatenating ".fft" to the input filename
-  char* input_filename = argv[1];
-  output_filename = (char*) malloc((strlen(input_filename) + strlen(FILE_EXTENSION) + 1) * sizeof(char));
-  strcpy(output_filename, input_filename);
-  strcat(output_filename, ".fft");
-  printf("%s\n", output_filename);
+  for (size_t file_ctr=1; file_ctr<argc; file_ctr++) {
+    printf("Working on %s\n", argv[file_ctr]);
 
-  // Reading the file
-  if (!(fp = fopen (input_filename, "r"))) {
-    fprintf (stderr, "error: file open failed");
-    return_defer(1);
-  }
+    // Generate the output filename by concatenating ".fft" to the input filename
+    char* input_filename = argv[file_ctr];
+    output_filename = (char*) malloc((strlen(input_filename) + strlen(FILE_EXTENSION) + 1) * sizeof(char));
+    strcpy(output_filename, input_filename);
+    strcat(output_filename, ".fft");
 
-  if (alloc_string_array(&file_contents) < 0) {
-    return_defer(1);
-  }
-
-  while (getline(&lineptr, &n, fp) > 0) {
-    if (add_string_to_array(&file_contents, lineptr) < 0) {
+    // Reading the file
+    if (!(fp = fopen (input_filename, "r"))) {
+      fprintf (stderr, "error: file open failed");
       return_defer(1);
     }
-  }
-  // At this point, the file has been read and stored in file_contents
+    
+    file_contents = new_string_array(MAX_NLINES);
+    if (alloc_string_array(&file_contents) < 0) {
+      return_defer(1);
+    }
 
-  // Preparing for the FFT
-  size_t N = file_contents.size - 2;
-  x_pos = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
-  y_pos = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
-  x_fft = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
-  y_fft = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
-
-  struct timespec new_ts = {0}, old_ts = {0}, result = {0};
-  unsigned long long time_diff_sum = 0;
-
-  for (size_t i=2; i<file_contents.size; i++) {
-    int year, month, day, hour, minute, second, nanoseconds, x_int, y_int;
-    if (sscanf(
-          file_contents.contents[i], 
-          "%d-%d-%d_%d:%d:%d.%d, [%d, %d]", 
-          &year, &month, &day, &hour, &minute, &second, &nanoseconds, &x_int, &y_int
-        ) != 9) {
-        fprintf(stderr, "Invalid input format\n");
+    while (getline(&lineptr, &n, fp) > 0) {
+      if (add_string_to_array(&file_contents, lineptr) < 0) {
         return_defer(1);
+      }
+    }
+    // At this point, the file has been read and stored in file_contents
+
+    // Preparing for the FFT
+    size_t N = file_contents.size - 2;
+    x_pos = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
+    y_pos = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
+    x_fft = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
+    y_fft = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
+
+    struct timespec new_ts = {0}, old_ts = {0}, result = {0};
+    unsigned long long time_diff_sum = 0;
+
+    for (size_t i=2; i<file_contents.size; i++) {
+      int year, month, day, hour, minute, second, nanoseconds, x_int, y_int;
+      if (sscanf(
+            file_contents.contents[i], 
+            "%d-%d-%d_%d:%d:%d.%d, [%d, %d]", 
+            &year, &month, &day, &hour, &minute, &second, &nanoseconds, &x_int, &y_int
+          ) != 9) {
+          fprintf(stderr, "Invalid input format\n");
+          return_defer(1);
+      }
+
+      x_pos[i-2] = x_int + 0.0*I;
+      y_pos[i-2] = y_int + 0.0*I;
+      struct tm tm_data = {
+          .tm_year = year - 1900, // Adjust for year offset
+          .tm_mon = month - 1,    // Adjust for month offset
+          .tm_mday = day,
+          .tm_hour = hour,
+          .tm_min = minute,
+          .tm_sec = second,
+      };
+
+      // Convert struct tm to a timestamp in seconds since the epoch
+      time_t timestamp = mktime(&tm_data);
+      if (timestamp == -1) {
+          perror("mktime");
+          return_defer(1);
+      }
+
+      // Create a timespec structure
+      if (i>2) old_ts = new_ts;
+      new_ts.tv_sec = timestamp + nanoseconds / 1000000000; // Convert nanoseconds to seconds
+      new_ts.tv_nsec = nanoseconds % 1000000000;
+
+      if (i>2) {
+         timespec_diff_macro(&new_ts, &old_ts, &result);
+         time_diff_sum += result.tv_sec*1000000000 + result.tv_nsec;
+      }
+    }
+    double T = ((double)time_diff_sum / ((double)N-1)) / 1e9;
+    double frequency = 1/T;
+
+    // Performing the two FFTs
+    px = fftw_plan_dft_1d(N, x_pos, x_fft, FFTW_FORWARD, FFTW_ESTIMATE);
+    py = fftw_plan_dft_1d(N, y_pos, y_fft, FFTW_FORWARD, FFTW_ESTIMATE);
+    fftw_execute(px);
+    fftw_execute(py);
+
+    if (!(output_file_ptr = fopen (output_filename, "w"))) {
+      fprintf (stderr, "error: file open failed");
+      return_defer(1);
     }
 
-    x_pos[i-2] = x_int + 0.0*I;
-    y_pos[i-2] = y_int + 0.0*I;
-    struct tm tm_data = {
-        .tm_year = year - 1900, // Adjust for year offset
-        .tm_mon = month - 1,    // Adjust for month offset
-        .tm_mday = day,
-        .tm_hour = hour,
-        .tm_min = minute,
-        .tm_sec = second,
-    };
-
-    // Convert struct tm to a timestamp in seconds since the epoch
-    time_t timestamp = mktime(&tm_data);
-    if (timestamp == -1) {
-        perror("mktime");
-        return_defer(1);
+    for (size_t i=0; i<N; i++) {
+      fprintf(output_file_ptr, "%lf, %f, %f\n", i*frequency, cabs(x_fft[i]), carg(x_fft[i]));
     }
-
-    // Create a timespec structure
-    if (i>2) old_ts = new_ts;
-    new_ts.tv_sec = timestamp + nanoseconds / 1000000000; // Convert nanoseconds to seconds
-    new_ts.tv_nsec = nanoseconds % 1000000000;
-
-    if (i>2) {
-       timespec_diff_macro(&new_ts, &old_ts, &result);
-       time_diff_sum += result.tv_sec*1000000000 + result.tv_nsec;
-    }
-  }
-  double T = ((double)time_diff_sum / ((double)N-1)) / 1e9;
-  double frequency = 1/T;
-
-  // Performing the two FFTs
-  px = fftw_plan_dft_1d(N, x_pos, x_fft, FFTW_FORWARD, FFTW_ESTIMATE);
-  py = fftw_plan_dft_1d(N, y_pos, y_fft, FFTW_FORWARD, FFTW_ESTIMATE);
-  fftw_execute(px);
-  fftw_execute(py);
-
-  for (size_t i=0; i<N; i++) {
-    printf("%lf, %f, %f\n", i*frequency, cabs(x_fft[i]), carg(x_fft[i]));
   }
 
   defer:
