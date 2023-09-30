@@ -103,7 +103,7 @@ int main(void) {
   double T = ((double)time_diff_sum / ((double)N-1)) / 1e9;
   double frequency = 1/T;
 
-  // Making the plans
+  // Performing the two FFTs
   px = fftw_plan_dft_1d(N, x_pos, x_fft, FFTW_FORWARD, FFTW_ESTIMATE);
   py = fftw_plan_dft_1d(N, y_pos, y_fft, FFTW_FORWARD, FFTW_ESTIMATE);
   fftw_execute(px);
