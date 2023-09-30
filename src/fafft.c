@@ -20,31 +20,52 @@
     }                                                 \
   } while (0)
 // I got the following from http://twitch.tv/tsoding
-#define return_defer(value) do { exe_result = (value); goto defer; } while (0)
+//#define return_defer(value) do { exe_result = (value); goto defer; } while (0)
+
+time_t time_to_epoch ( const struct tm *ltm, int utcdiff ) {
+   const int mon_days [] =
+      {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+   long tyears, tdays, leaps, utc_hrs;
+   int i;
+
+   tyears = ltm->tm_year - 70 ; // tm->tm_year is from 1900.
+   leaps = (tyears + 2) / 4; // no of next two lines until year 2100.
+   //i = (ltm->tm_year – 100) / 100;
+   //leaps -= ( (i/4)*3 + i%4 );
+   tdays = 0;
+   for (i=0; i < ltm->tm_mon; i++) tdays += mon_days[i];
+
+   tdays += ltm->tm_mday-1; // days of month passed.
+   tdays = tdays + (tyears * 365) + leaps;
+
+   utc_hrs = ltm->tm_hour + utcdiff; // for your time zone.
+   return (tdays * 86400) + (utc_hrs * 3600) + (ltm->tm_min * 60) + ltm->tm_sec;
+}
 
 int main(int argc, char* argv[]) {
   int exe_result = 0;
-  char* output_filename = NULL;
-  FILE *fp = NULL;
-  FILE *output_file_ptr = NULL;
-  StringArray file_contents;
-  char *lineptr = NULL;
-  size_t n = 0; // Needed for the upcoming getline call
-  fftw_complex *x_pos = NULL;
-  fftw_complex *y_pos = NULL;
-  fftw_complex *x_fft = NULL;
-  fftw_complex *y_fft = NULL;
-  fftw_plan px = NULL;
-  fftw_plan py = NULL;
 
   const char* exe_name = argv[0];
   if (argc == 1) {
     fprintf(stderr, "Please provide a file containing the FA data to be analysed.\n");
     fprintf(stderr, "%s filename\n", exe_name);
-    return_defer(1);
+    return 1;
   }
 
   for (size_t file_ctr=1; file_ctr<argc; file_ctr++) {
+    char* output_filename = NULL;
+    FILE *input_file_ptr = NULL;
+    FILE *output_file_ptr = NULL;
+    StringArray file_contents;
+    char *lineptr = NULL;
+    size_t n = 0; // Needed for the upcoming getline call
+    fftw_complex *x_pos = NULL;
+    fftw_complex *y_pos = NULL;
+    fftw_complex *x_fft = NULL;
+    fftw_complex *y_fft = NULL;
+    fftw_plan px = NULL;
+    fftw_plan py = NULL;
+
     printf("Working on %s\n", argv[file_ctr]);
 
     // Generate the output filename by concatenating ".fft" to the input filename
@@ -54,19 +75,19 @@ int main(int argc, char* argv[]) {
     strcat(output_filename, ".fft");
 
     // Reading the file
-    if (!(fp = fopen (input_filename, "r"))) {
+    if (!(input_file_ptr = fopen (input_filename, "r"))) {
       fprintf (stderr, "error: file open failed");
-      return_defer(1);
+      return 1;
     }
     
     file_contents = new_string_array(MAX_NLINES);
     if (alloc_string_array(&file_contents) < 0) {
-      return_defer(1);
+      return 1;
     }
 
-    while (getline(&lineptr, &n, fp) > 0) {
+    while (getline(&lineptr, &n, input_file_ptr) > 0) {
       if (add_string_to_array(&file_contents, lineptr) < 0) {
-        return_defer(1);
+        return 1;
       }
     }
     // At this point, the file has been read and stored in file_contents
@@ -83,13 +104,14 @@ int main(int argc, char* argv[]) {
 
     for (size_t i=2; i<file_contents.size; i++) {
       int year, month, day, hour, minute, second, nanoseconds, x_int, y_int;
+      // TODO: Can this sscanf be replaced with fscanf to speed things up?
       if (sscanf(
             file_contents.contents[i], 
             "%d-%d-%d_%d:%d:%d.%d, [%d, %d]", 
             &year, &month, &day, &hour, &minute, &second, &nanoseconds, &x_int, &y_int
           ) != 9) {
           fprintf(stderr, "Invalid input format\n");
-          return_defer(1);
+          return 1;
       }
 
       x_pos[i-2] = x_int + 0.0*I;
@@ -104,10 +126,10 @@ int main(int argc, char* argv[]) {
       };
 
       // Convert struct tm to a timestamp in seconds since the epoch
-      time_t timestamp = mktime(&tm_data);
+      // time_t timestamp = mktime(&tm_data);
+      time_t timestamp = time_to_epoch(&tm_data, 2);
       if (timestamp == -1) {
-          perror("mktime");
-          return_defer(1);
+          return 1;
       }
 
       // Create a timespec structure
@@ -131,17 +153,16 @@ int main(int argc, char* argv[]) {
 
     if (!(output_file_ptr = fopen (output_filename, "w"))) {
       fprintf (stderr, "error: file open failed");
-      return_defer(1);
+      return 1;
     }
 
     for (size_t i=0; i<N; i++) {
       fprintf(output_file_ptr, "%lf, %f, %f\n", i*frequency, cabs(x_fft[i]), carg(x_fft[i]));
     }
-  }
 
-  defer:
     if (output_filename) free(output_filename);
-    if (fp) fclose(fp);
+    if (input_file_ptr) fclose(input_file_ptr);
+    if (output_file_ptr) fclose(output_file_ptr);
     if (lineptr) free(lineptr);
     if (file_contents.contents) free_string_array(&file_contents);
     if (x_pos) fftw_free(x_pos);
@@ -150,7 +171,8 @@ int main(int argc, char* argv[]) {
     if (y_fft) fftw_free(y_fft);
     if (px) fftw_destroy_plan(px);
     if (py) fftw_destroy_plan(py);
-    fftw_cleanup();
+  }
+  fftw_cleanup();
 
-    return exe_result;
+  return exe_result;
 }
