@@ -21,7 +21,7 @@
 // I got the following from http://twitch.tv/tsoding
 #define return_defer(value) do { exe_result = (value); goto defer; } while (0)
 
-int main(void) {
+int main(int argc, char* argv[]) {
   int exe_result = 0;
   FILE *fp = NULL;
   StringArray file_contents = new_string_array(MAX_NLINES);
@@ -33,6 +33,13 @@ int main(void) {
   fftw_complex *y_fft = NULL;
   fftw_plan px = NULL;
   fftw_plan py = NULL;
+
+  const char* exe_name = argv[0];
+  if (argc == 1) {
+    fprintf(stderr, "Please provide a file containing the FA data to be analysed.\n");
+    fprintf(stderr, "%s filename\n", exe_name);
+    return_defer(1);
+  }
 
   // Reading the file
   if (!(fp = fopen ("fa_data_001.dat", "r"))) {
