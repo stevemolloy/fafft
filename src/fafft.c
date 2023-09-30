@@ -9,6 +9,7 @@
 #include "string_array.h"
 
 #define MAX_NLINES 131072
+#define FILE_EXTENSION ".fft"
 #define timespec_diff_macro(a, b, result)             \
   do {                                                \
     (result)->tv_sec = (a)->tv_sec - (b)->tv_sec;     \
@@ -23,6 +24,7 @@
 
 int main(int argc, char* argv[]) {
   int exe_result = 0;
+  char* output_filename = NULL;
   FILE *fp = NULL;
   StringArray file_contents = new_string_array(MAX_NLINES);
   char *lineptr = NULL;
@@ -41,8 +43,15 @@ int main(int argc, char* argv[]) {
     return_defer(1);
   }
 
+  // Generate the output filename by concatenating ".fft" to the input filename
+  char* input_filename = argv[1];
+  output_filename = (char*) malloc((strlen(input_filename) + strlen(FILE_EXTENSION) + 1) * sizeof(char));
+  strcpy(output_filename, input_filename);
+  strcat(output_filename, ".fft");
+  printf("%s\n", output_filename);
+
   // Reading the file
-  if (!(fp = fopen ("fa_data_001.dat", "r"))) {
+  if (!(fp = fopen (input_filename, "r"))) {
     fprintf (stderr, "error: file open failed");
     return_defer(1);
   }
@@ -121,6 +130,7 @@ int main(int argc, char* argv[]) {
   }
 
   defer:
+    if (output_filename) free(output_filename);
     if (fp) fclose(fp);
     if (lineptr) free(lineptr);
     if (file_contents.contents) free_string_array(&file_contents);

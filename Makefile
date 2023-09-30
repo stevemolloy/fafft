@@ -1,16 +1,24 @@
-CC = clang
-CFLAGS = -Wall -Wpedantic -Werror -ggdb
-CLIBS = -lm -lfftw3
-DEPS = string_array.h
-OBJ = string_array.o fafft.o
+CC=clang
+CFLAGS=-Wall -Wpedantic -Werror -ggdb
+CLIBS=-lm -lfftw3
 
-all: fafft
+SRC=src
+OBJ=obj
+SRCS=$(wildcard $(SRC)/*.c)
+OBJS=$(patsubst $(SRC)/%.c, $(OBJ)/%.o, $(SRCS))
+BINDIR=bin
+BIN=$(BINDIR)/fafft
 
-fafft: $(OBJ)
-	$(CC) -o $@ $(CFLAGS) $(CLIBS) $^
+all:$(BIN)
 
-%.o: %.c $(DEPS)
-	$(CC) -c -o $@ $< $(CFLAGS)
+$(BIN): $(OBJS)
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) $(CLIBS) $(OBJS) -o $@
+
+$(OBJ)/%.o: $(SRC)/%.c
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm fafft *.o
+	rm -rf $(BINDIR) $(OBJ)
+
