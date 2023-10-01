@@ -52,7 +52,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  for (size_t file_ctr=1; file_ctr<argc; file_ctr++) {
+  for (int file_ctr=1; file_ctr<argc; file_ctr++) {
     char* output_filename = NULL;
     FILE *input_file_ptr = NULL;
     FILE *output_file_ptr = NULL;
