@@ -4,7 +4,7 @@ CLIBS = -lm -lfftw3
 
 SRC = src
 OBJ = obj
-DEPDIR = .dep
+DEPDIR = .deps
 
 SRCS = $(wildcard $(SRC)/*.c)
 OBJS = $(patsubst $(SRC)/%.c, $(OBJ)/%.o, $(SRCS))
@@ -17,18 +17,18 @@ BIN = $(BINDIR)/fafft
 all: $(BIN)
 
 $(BIN): $(OBJS)
-	mkdir -p $(@D)
+	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) $(CLIBS) $^ -o $@
 
 $(OBJ)/%.o: $(SRC)/%.c
-	mkdir -p $(@D)
+	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
 
 clean:
 	rm -rf $(BINDIR) $(DEPDIR) $(OBJ)
 
 $(OBJ) $(DEPDIR):
-	mkdir -p $@
+	@mkdir -p $@
 
 # Include the '.d' dependency files
 -include $(DEPS)

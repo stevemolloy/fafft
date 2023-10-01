@@ -1,4 +1,4 @@
 bin
 obj
 example/*.fft
-.dep
+.deps
