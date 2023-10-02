@@ -212,6 +212,9 @@ int main(int argc, char* argv[]) {
 #endif // DEBUG
     write_file(&output[file_ctr - 1]);
 
+#if DEBUG
+    printf("\tDeallocating & fclosing inside the file loop.\n", output_filename);
+#endif // DEBUG
     if (output_filename) free(output_filename);
     if (input_file_ptr) fclose(input_file_ptr);
     if (lineptr) free(lineptr);
