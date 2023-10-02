@@ -1,4 +1,5 @@
 bin
 obj
 example/*.fft
+long_example
 .deps
