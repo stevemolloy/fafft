@@ -1,5 +1,5 @@
 CC = clang
-CFLAGS = -Wall -Wextra -Wpedantic -Werror -ggdb
+CFLAGS = -Wall -Wextra -Wpedantic -Wconversion -Werror -ggdb
 CLIBS = -lm -lfftw3
 
 SRC = src
