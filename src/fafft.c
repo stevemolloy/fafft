@@ -156,19 +156,22 @@ int main(int argc, char* argv[]) {
       return 1;
     }
 
-    float x_mag , y_mag , x_angle , y_angle;
+    float x_mag[N], y_mag[N], x_angle[N], y_angle[N];
     fprintf(output_file_ptr, "Freq/Hz, x Mag, x Angle, y Mag, y Angle\n");
     for (size_t i=0; i<N; i++) {
-      x_mag = cabs(x_fft[i]);
-      y_mag = cabs(y_fft[i]);
-      x_angle = carg(x_fft[i]);
-      y_angle = carg(y_fft[i]);
+      x_mag[i] = cabs(x_fft[i]);
+      y_mag[i] = cabs(y_fft[i]);
+      x_angle[i] = carg(x_fft[i]);
+      y_angle[i] = carg(y_fft[i]);
+    }
+
+    for (size_t i=0; i<N; i++) {
       fprintf(
           output_file_ptr, 
           "%lf, %f, %f, %f, %f\n", 
           i*frequency, 
-          x_mag, x_angle, 
-          y_mag, y_angle
+          x_mag[i], x_angle[i], 
+          y_mag[i], y_angle[i]
         );
     }
 
