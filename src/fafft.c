@@ -38,6 +38,7 @@ typedef struct OutputData {
 // }
 
 void write_file(OutputData *output) {
+  fprintf(output->ptr, "Freq/Hz, x Mag, x Angle, y Mag, y Angle\n");
   for (size_t i=0; i<output->N; i++) {
     fprintf(output->ptr, "%lf, ", (double)i*output->freq);
     fprintf(output->ptr, "%f, ", output->x_mag[i]);
@@ -209,7 +210,6 @@ int main(int argc, char* argv[]) {
 #if DEBUG
     printf("\tWriting output file: %s\n", output_filename);
 #endif // DEBUG
-    fprintf(output[file_ctr - 1].ptr, "Freq/Hz, x Mag, x Angle, y Mag, y Angle\n");
     write_file(&output[file_ctr - 1]);
 
     if (output_filename) free(output_filename);
