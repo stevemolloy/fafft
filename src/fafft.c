@@ -106,13 +106,13 @@ int main(int argc, char* argv[]) {
 
     // Preparing for the FFT
     size_t N = file_contents.size - 2;
-    x_pos = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
-    y_pos = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
-    x_fft = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
-    y_fft = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
+    x_pos = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * (unsigned long)N);
+    y_pos = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * (unsigned long)N);
+    x_fft = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * (unsigned long)N);
+    y_fft = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * (unsigned long)N);
 
     struct timespec new_ts = {0}, old_ts = {0}, result = {0};
-    unsigned long long time_diff_sum = 0;
+    long time_diff_sum = 0;
 
     for (size_t i=2; i<file_contents.size; i++) {
       int year, month, day, hour, minute, second, nanoseconds, x_int, y_int;
@@ -154,12 +154,13 @@ int main(int argc, char* argv[]) {
          time_diff_sum += result.tv_sec*1000000000 + result.tv_nsec;
       }
     }
-    double T = ((double)time_diff_sum / ((double)N-1)) / 1e9;
+
+    double T = (double)time_diff_sum / 1e9;
     double frequency = 1/T;
 
     // Performing the two FFTs
-    px = fftw_plan_dft_1d(N, x_pos, x_fft, FFTW_FORWARD, FFTW_ESTIMATE);
-    py = fftw_plan_dft_1d(N, y_pos, y_fft, FFTW_FORWARD, FFTW_ESTIMATE);
+    px = fftw_plan_dft_1d((int)N, x_pos, x_fft, FFTW_FORWARD, FFTW_ESTIMATE);
+    py = fftw_plan_dft_1d((int)N, y_pos, y_fft, FFTW_FORWARD, FFTW_ESTIMATE);
     fftw_execute(px);
     fftw_execute(py);
 
@@ -168,7 +169,10 @@ int main(int argc, char* argv[]) {
       return 1;
     }
 
-    float x_mag[N], y_mag[N], x_angle[N], y_angle[N];
+    double *x_mag = malloc(sizeof(double) * N);
+    double *y_mag = malloc(sizeof(double) * N);
+    double *x_angle = malloc(sizeof(double) * N);
+    double *y_angle = malloc(sizeof(double) * N);
     fprintf(output_file_ptr, "Freq/Hz, x Mag, x Angle, y Mag, y Angle\n");
     for (size_t i=0; i<N; i++) {
       x_mag[i] = cabs(x_fft[i]);
@@ -190,6 +194,10 @@ int main(int argc, char* argv[]) {
     if (y_fft) fftw_free(y_fft);
     if (px) fftw_destroy_plan(px);
     if (py) fftw_destroy_plan(py);
+    if (x_mag) free(x_mag);
+    if (y_mag) free(y_mag);
+    if (x_angle) free(x_angle);
+    if (y_angle) free(y_angle);
   }
   fftw_cleanup();
 
