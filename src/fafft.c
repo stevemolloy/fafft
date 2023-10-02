@@ -8,6 +8,7 @@
 
 #include "string_array.h"
 
+#define DEBUG false
 #define MAX_NLINES 131072
 #define FILE_EXTENSION ".fft"
 #define timespec_diff_macro(a, b, result)             \
@@ -22,7 +23,7 @@
 // I got the following from http://twitch.tv/tsoding
 //#define return_defer(value) do { exe_result = (value); goto defer; } while (0)
 
-typedef struct FileWriter {
+typedef struct OutputData {
   FILE *ptr;
   size_t N;
   double freq;
@@ -30,17 +31,19 @@ typedef struct FileWriter {
   double *x_angle;
   double *y_mag;
   double *y_angle;
-} FileWriter;
+} OutputData;
 
-void write_file(FileWriter *fw) {
-  for (size_t i=0; i<fw->N; i++) {
-    fprintf(
-        fw->ptr,
-        "%lf, %f, %f, %f, %f\n",
-        (double)i*fw->freq,
-        fw->x_mag[i], fw->x_angle[i],
-        fw->y_mag[i], fw->y_angle[i]
-      );
+// OutputData* new_outputdata(void) {
+//
+// }
+
+void write_file(OutputData *output) {
+  for (size_t i=0; i<output->N; i++) {
+    fprintf(output->ptr, "%lf, ", (double)i*output->freq);
+    fprintf(output->ptr, "%f, ", output->x_mag[i]);
+    fprintf(output->ptr, "%f, ", output->x_angle[i]);
+    fprintf(output->ptr, "%f, ", output->y_mag[i]);
+    fprintf(output->ptr, "%f\n", output->y_angle[i]);
   }
 }
 
@@ -74,12 +77,11 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  FileWriter *fw = malloc(sizeof(FileWriter) * (unsigned long)(argc - 1));
+  OutputData *output = malloc(sizeof(OutputData) * (unsigned long)(argc - 1));
 
   for (int file_ctr=1; file_ctr<argc; file_ctr++) {
     char* output_filename = NULL;
     FILE *input_file_ptr = NULL;
-    FILE *output_file_ptr = NULL;
     StringArray file_contents;
     char *lineptr = NULL;
     size_t n = 0; // Needed for the upcoming getline call
@@ -90,7 +92,12 @@ int main(int argc, char* argv[]) {
     fftw_plan px = NULL;
     fftw_plan py = NULL;
 
-    printf("Working on %s\n", argv[file_ctr]);
+#if DEBUG
+    printf("Working on %s       \n", argv[file_ctr]);
+#else
+    printf("Working on %s       \r", argv[file_ctr]);
+#endif // DEBUG
+    fflush(stdout);
 
     // Generate the output filename by concatenating ".fft" to the input filename
     char* input_filename = argv[file_ctr];
@@ -150,7 +157,7 @@ int main(int argc, char* argv[]) {
       };
 
       // Convert struct tm to a timestamp in seconds since the epoch
-      // time_t timestamp = mktime(&tm_data);
+      // time_t timestamp = mktime(&tm_data); // Slow as hell. Replaced with the following
       time_t timestamp = time_to_epoch(&tm_data, 2);
       if (timestamp == -1) {
           return 1;
@@ -176,38 +183,37 @@ int main(int argc, char* argv[]) {
     fftw_execute(px);
     fftw_execute(py);
 
-    if (!(output_file_ptr = fopen (output_filename, "w"))) {
-      fprintf (stderr, "error: file open failed");
-      return 1;
-    }
-
-    double *x_mag = malloc(sizeof(double) * N);
-    double *y_mag = malloc(sizeof(double) * N);
-    double *x_angle = malloc(sizeof(double) * N);
-    double *y_angle = malloc(sizeof(double) * N);
-    fprintf(output_file_ptr, "Freq/Hz, x Mag, x Angle, y Mag, y Angle\n");
-    for (size_t i=0; i<N; i++) {
-      x_mag[i] = cabs(x_fft[i]);
-      y_mag[i] = cabs(y_fft[i]);
-      x_angle[i] = carg(x_fft[i]);
-      y_angle[i] = carg(y_fft[i]);
-    }
-
-    fw[file_ctr - 1] = (FileWriter) {
-      .ptr = output_file_ptr,
+#if DEBUG
+    printf("\tBuilding output struct\n");
+#endif // DEBUG
+    output[file_ctr - 1] = (OutputData) {
+      .ptr = fopen(output_filename, "w"),
       .N = N,
       .freq = frequency,
-      .x_mag = x_mag,
-      .x_angle = x_angle,
-      .y_mag = y_mag,
-      .y_angle = y_angle,
+      .x_mag = (double*)malloc(sizeof(double) * N),
+      .x_angle = (double*)malloc(sizeof(double) * N),
+      .y_mag = (double*)malloc(sizeof(double) * N),
+      .y_angle = (double*)malloc(sizeof(double) * N),
     };
 
-    write_file(&fw[file_ctr - 1]);
+#if DEBUG
+    printf("\tFilling output struct\n");
+#endif // DEBUG
+    for (size_t i=0; i<N; i++) {
+      output[file_ctr - 1].x_mag[i] = cabs(x_fft[i]);
+      output[file_ctr - 1].y_mag[i] = cabs(y_fft[i]);
+      output[file_ctr - 1].x_angle[i] = carg(x_fft[i]);
+      output[file_ctr - 1].y_angle[i] = carg(y_fft[i]);
+    }
+
+#if DEBUG
+    printf("\tWriting output file: %s\n", output_filename);
+#endif // DEBUG
+    fprintf(output[file_ctr - 1].ptr, "Freq/Hz, x Mag, x Angle, y Mag, y Angle\n");
+    write_file(&output[file_ctr - 1]);
 
     if (output_filename) free(output_filename);
     if (input_file_ptr) fclose(input_file_ptr);
-    if (output_file_ptr) fclose(output_file_ptr);
     if (lineptr) free(lineptr);
     if (file_contents.contents) free_string_array(&file_contents);
     if (x_pos) fftw_free(x_pos);
@@ -216,12 +222,18 @@ int main(int argc, char* argv[]) {
     if (y_fft) fftw_free(y_fft);
     if (px) fftw_destroy_plan(px);
     if (py) fftw_destroy_plan(py);
-    if (x_mag) free(x_mag);
-    if (y_mag) free(y_mag);
-    if (x_angle) free(x_angle);
-    if (y_angle) free(y_angle);
   }
-  free(fw);
+#if DEBUG
+  printf("\tWrapping up\n");
+#endif /* if DEBUG */
+  for (int i=0; i<argc-1; i++) {
+    fclose(output[i].ptr);
+    free(output[i].x_mag);
+    free(output[i].y_mag);
+    free(output[i].x_angle);
+    free(output[i].y_angle);
+  }
+  free(output);
   fftw_cleanup();
 
   return exe_result;
