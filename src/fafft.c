@@ -22,6 +22,18 @@
 // I got the following from http://twitch.tv/tsoding
 //#define return_defer(value) do { exe_result = (value); goto defer; } while (0)
 
+void write_file(FILE *ptr, size_t N, double frequency, double *x_mag, double *x_angle, double *y_mag, double *y_angle) {
+  for (size_t i=0; i<N; i++) {
+    fprintf(
+        ptr,
+        "%lf, %f, %f, %f, %f\n",
+        (double)i*frequency,
+        x_mag[i], x_angle[i],
+        y_mag[i], y_angle[i]
+      );
+  }
+}
+
 time_t time_to_epoch ( const struct tm *ltm, int utcdiff ) {
    const int mon_days [] =
       {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
@@ -165,15 +177,7 @@ int main(int argc, char* argv[]) {
       y_angle[i] = carg(y_fft[i]);
     }
 
-    for (size_t i=0; i<N; i++) {
-      fprintf(
-          output_file_ptr, 
-          "%lf, %f, %f, %f, %f\n", 
-          i*frequency, 
-          x_mag[i], x_angle[i], 
-          y_mag[i], y_angle[i]
-        );
-    }
+    write_file(output_file_ptr, N, frequency, &x_mag[0], &x_angle[0], &y_mag[0], &y_angle[0]);
 
     if (output_filename) free(output_filename);
     if (input_file_ptr) fclose(input_file_ptr);
