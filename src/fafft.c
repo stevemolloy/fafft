@@ -74,6 +74,8 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
+  FileWriter *fw = malloc(sizeof(FileWriter) * (unsigned long)(argc - 1));
+
   for (int file_ctr=1; file_ctr<argc; file_ctr++) {
     char* output_filename = NULL;
     FILE *input_file_ptr = NULL;
@@ -191,7 +193,7 @@ int main(int argc, char* argv[]) {
       y_angle[i] = carg(y_fft[i]);
     }
 
-    FileWriter fw = {
+    fw[file_ctr - 1] = (FileWriter) {
       .ptr = output_file_ptr,
       .N = N,
       .freq = frequency,
@@ -201,7 +203,7 @@ int main(int argc, char* argv[]) {
       .y_angle = y_angle,
     };
 
-    write_file(&fw);
+    write_file(&fw[file_ctr - 1]);
 
     if (output_filename) free(output_filename);
     if (input_file_ptr) fclose(input_file_ptr);
@@ -219,6 +221,7 @@ int main(int argc, char* argv[]) {
     if (x_angle) free(x_angle);
     if (y_angle) free(y_angle);
   }
+  free(fw);
   fftw_cleanup();
 
   return exe_result;
