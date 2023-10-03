@@ -6,11 +6,15 @@
 #include <complex.h>
 #include <fftw3.h>
 
+#include "defns.h"
+
 #include "string_array.h"
 #include "timer_func.h"
 #include "output_data.h"
 
-#define DEBUG false
+#if THREADED
+#include <pthread.h>
+#endif // THREADED
 #define MAX_NLINES 131072
 #define FILE_EXTENSION ".fft"
 // I got the following from http://twitch.tv/tsoding
@@ -26,6 +30,9 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
+#if THREADED
+  pthread_t threads[argc];
+#endif // THREADED
   OutputData *output = malloc(sizeof(OutputData) * (unsigned long)(argc - 1));
 
   for (int file_ctr=1; file_ctr<argc; file_ctr++) {
@@ -158,7 +165,11 @@ int main(int argc, char* argv[]) {
 #if DEBUG
     printf("\tWriting output file: %s\n", output_filename);
 #endif // DEBUG
+#if THREADED
+     pthread_create(&threads[file_ctr - 1], NULL, &write_file, (void*)&output[file_ctr - 1]);
+#else
     write_file(&output[file_ctr - 1]);
+#endif //THREADED
 
 #if DEBUG
     printf("\tDeallocating & fclosing inside the file loop.\n", output_filename);
@@ -177,6 +188,11 @@ int main(int argc, char* argv[]) {
 #if DEBUG
   printf("\tWrapping up\n");
 #endif /* if DEBUG */
+#if THREADED
+  for (int i=0; i<argc-1; i++) {
+    pthread_join(threads[i], NULL);
+  }
+#endif // THREADED
   for (int i=0; i<argc-1; i++) {
     fclose(output[i].ptr);
     free(output[i].x_mag);
