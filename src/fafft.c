@@ -7,19 +7,11 @@
 #include <fftw3.h>
 
 #include "string_array.h"
+#include "timer_func.h"
 
 #define DEBUG false
 #define MAX_NLINES 131072
 #define FILE_EXTENSION ".fft"
-#define timespec_diff_macro(a, b, result)             \
-  do {                                                \
-    (result)->tv_sec = (a)->tv_sec - (b)->tv_sec;     \
-    (result)->tv_nsec = (a)->tv_nsec - (b)->tv_nsec;  \
-    if ((result)->tv_nsec < 0) {                      \
-      --(result)->tv_sec;                             \
-      (result)->tv_nsec += 1000000000;                \
-    }                                                 \
-  } while (0)
 // I got the following from http://twitch.tv/tsoding
 //#define return_defer(value) do { exe_result = (value); goto defer; } while (0)
 
@@ -46,26 +38,6 @@ void write_file(OutputData *output) {
     fprintf(output->ptr, "%f, ", output->y_mag[i]);
     fprintf(output->ptr, "%f\n", output->y_angle[i]);
   }
-}
-
-time_t time_to_epoch ( const struct tm *ltm, int utcdiff ) {
-   const int mon_days [] =
-      {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-   long tyears, tdays, leaps, utc_hrs;
-   int i;
-
-   tyears = ltm->tm_year - 70 ; // tm->tm_year is from 1900.
-   leaps = (tyears + 2) / 4; // no of next two lines until year 2100.
-   //i = (ltm->tm_year – 100) / 100;
-   //leaps -= ( (i/4)*3 + i%4 );
-   tdays = 0;
-   for (i=0; i < ltm->tm_mon; i++) tdays += mon_days[i];
-
-   tdays += ltm->tm_mday-1; // days of month passed.
-   tdays = tdays + (tyears * 365) + leaps;
-
-   utc_hrs = ltm->tm_hour + utcdiff; // for your time zone.
-   return (tdays * 86400) + (utc_hrs * 3600) + (ltm->tm_min * 60) + ltm->tm_sec;
 }
 
 int main(int argc, char* argv[]) {
