@@ -22,4 +22,4 @@ int add_string_to_array(StringArray*, char*);
 
 void free_string_array(StringArray*);
 
-#endif // !
+#endif // !STRING_ARRAY_H
