@@ -8,37 +8,13 @@
 
 #include "string_array.h"
 #include "timer_func.h"
+#include "output_data.h"
 
 #define DEBUG false
 #define MAX_NLINES 131072
 #define FILE_EXTENSION ".fft"
 // I got the following from http://twitch.tv/tsoding
 //#define return_defer(value) do { exe_result = (value); goto defer; } while (0)
-
-typedef struct OutputData {
-  FILE *ptr;
-  size_t N;
-  double freq;
-  double *x_mag;
-  double *x_angle;
-  double *y_mag;
-  double *y_angle;
-} OutputData;
-
-// OutputData* new_outputdata(void) {
-//
-// }
-
-void write_file(OutputData *output) {
-  fprintf(output->ptr, "Freq/Hz, x Mag, x Angle, y Mag, y Angle\n");
-  for (size_t i=0; i<output->N; i++) {
-    fprintf(output->ptr, "%lf, ", (double)i*output->freq);
-    fprintf(output->ptr, "%f, ", output->x_mag[i]);
-    fprintf(output->ptr, "%f, ", output->x_angle[i]);
-    fprintf(output->ptr, "%f, ", output->y_mag[i]);
-    fprintf(output->ptr, "%f\n", output->y_angle[i]);
-  }
-}
 
 int main(int argc, char* argv[]) {
   int exe_result = 0;
