@@ -1,5 +1,5 @@
-CC = clang
-CFLAGS = -Wall -Wextra -Wpedantic -Wconversion -Werror -ggdb
+CC = gcc
+CFLAGS = -D _XOPEN_SOURCE=500 -D _POSIX_C_SOURCE=200809L -Wall -Wextra -Wpedantic -Wconversion -Werror -ggdb -std=c11
 CLIBS = -lm -lfftw3
 
 SRC = src
